@@ -1,29 +1,38 @@
-import Link from 'next/link';
-
 import Layout from '../../../components/Layout';
 import Post from '../../../components/Post';
 import Pagination from '../../../components/Pagination';
+import {getPosts} from '@/lib/posts';
+import CategoryList from '@/components/CategoryList';
 
 import fs from 'fs';
 import path from 'path';
-import matter from 'gray-matter';
 
-import {sortByDate} from '../../../utils';
 import {POSTS_PER_PAGE} from '../../../config';
 
-export default function BlogPage({posts, numPages, currentPage}) {
+export default function BlogPage({posts, numPages, currentPage, categories}) {
   console.log(posts);
   return (
     <Layout>
-      <h1 className="text-5xl border-b-4 p-5 font-bold">Blog</h1>
+      <div className="flex justify-between">
+        <div className="w-3/4 mr-10">
+          <h1 className="text-5xl border-b-4 p-5 font-bold">Blog</h1>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {posts.map((post, index) => (
-          <Post key={index} post={post} />
-        ))}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {posts.map((post, index) => (
+              <Post key={index} post={post} />
+            ))}
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            numPages={numPages}
+          ></Pagination>
+        </div>
+
+        <div className="w-1/4">
+          <CategoryList categories={categories}></CategoryList>
+        </div>
       </div>
-
-      <Pagination currentPage={currentPage} numPages={numPages}></Pagination>
     </Layout>
   );
 }
@@ -52,30 +61,25 @@ export async function getStaticProps({params}) {
 
   const files = fs.readdirSync(path.join('posts'));
 
-  const posts = files.map((file) => {
-    const slug = file.replace('.md', '');
+  const posts = getPosts();
 
-    const markdownWithMeta = fs.readFileSync(path.join('posts', file), 'utf-8');
+  const categories = posts.map((post) => post.frontmatter.category);
 
-    const {data: frontmatter} = matter(markdownWithMeta);
-
-    return {
-      slug,
-      frontmatter,
-    };
-  });
+  const uniqueCategories = [...new Set(categories)];
 
   const numPages = Math.ceil(files.length / POSTS_PER_PAGE);
   const pageIndex = page - 1;
-  const orderedPost = posts
-    .sort(sortByDate)
-    .slice(pageIndex * POSTS_PER_PAGE, (pageIndex + 1) * POSTS_PER_PAGE);
+  const orderedPost = posts.slice(
+    pageIndex * POSTS_PER_PAGE,
+    (pageIndex + 1) * POSTS_PER_PAGE
+  );
 
   return {
     props: {
       posts: orderedPost,
       numPages,
       currentPage: page,
+      categories: uniqueCategories,
     },
   };
 }
